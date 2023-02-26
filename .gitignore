@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local development settings
+.env
+*.sqlite3
+
+# Secret keys
+secret_key.txt
+
+# Static files
+staticfiles/
+*.pyc
+
+# Logs
+logs/
+*.log
+
+# IDE files
+.vscode/
+.idea/
+
+# macOS files
+.DS_Store
+
+# Dependencies
+my_env
+venv/
+*.venv
+pip-lock.txt
