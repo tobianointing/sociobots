@@ -53,40 +53,6 @@ def whatsapp_bot(request):
     return HttpResponse(str(resp))
 
 
-
-# # Get API key from environment variables
-# TELEGRAMBOT_API_KEY = os.environ.get('TELEGRAMBOT_API_KEY')
-
-# # Create bot and dispatcher instances
-# bot = Bot(token=TELEGRAMBOT_API_KEY)
-# dispatcher = Dispatcher(bot, None, use_context=True)
-
-# # Define handler functions
-# @csrf_exempt
-# def start(update, context):
-#     print(update.message.text)
-#     context.bot.send_message(chat_id=update.effective_chat.id, text="Hey boss! Ask me anything about crypto.")
-
-# @csrf_exempt
-# def echo(update, context):
-#     context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
-
-# # Add handlers to dispatcher
-# dispatcher.add_handler(MessageHandler(Filters.command, start))
-# dispatcher.add_handler(MessageHandler(Filters.text, echo))
-
-# # Define webhook view function
-# @csrf_exempt
-# def telegram_webhook(request):
-#     if request.method == 'POST':
-#         data = json.loads(request.body.decode('utf-8'))
-#         update = Update.de_json(data, bot)
-#         dispatcher.process_update(update)
-#     return HttpResponse('okay')
-
-# # Set webhook
-# bot.setWebhook(url='https://tobianointing.pythonanywhere.com/telegram_webhook/')
-
 # Get API key from environment variables
 TELEGRAMBOT_API_KEY = os.environ.get('TELEGRAMBOT_API_KEY')
 
@@ -97,9 +63,8 @@ dispatcher = Dispatcher(bot, None, use_context=True)
 # Define handler functions
 
 HELP_TEXT = """
-Hello, I can help you on ingo about cryptos.
-
-Here are so me of the commands to get apt answers:
+Hello, I can help you with info about cryptos.
+Here are some of the commands to get apt answers:
 
 /price [symbol] - this is to get you the current
 rate/usd of the crypto e.g /price BTC
@@ -133,6 +98,9 @@ def api_apdater(endpoint, callback, **kwargs):
     url = f'{BASE_URL}/{endpoint}/'
     headers = {'X-CoinAPI-Key' : COINAPI_API_KEY}
     response = requests.get(url, headers=headers)
+    print(url)
+    print(dir(response))
+    print(response.status_code)
     if response.status_code == 200:
         if kwargs:
             return callback(response.json(), kwargs["vol_type"])
@@ -155,7 +123,7 @@ def get_rate(resp):
 def handle_incoming_msg(incoming_msg):
     incoming_msg_list = incoming_msg.split(" ")
     if len(incoming_msg_list) == 2:
-        symbol = incoming_msg_list[1]
+        symbol = incoming_msg_list[1].upper()
         return {"status": True, "msg": symbol}
     return {"status": False, "msg": "Please enter the right command. Type `/help` for help."}
 
@@ -187,6 +155,7 @@ def price(update, context):
 
     context.bot.send_message(chat_id=update.effective_chat.id, text=outgoing_msg)
 
+@csrf_exempt
 def vol24h(update, context):
     incoming_msg = update.message.text
     resp = handle_incoming_msg(incoming_msg)
@@ -199,6 +168,7 @@ def vol24h(update, context):
         outgoing_msg = resp["msg"]
     context.bot.send_message(chat_id=update.effective_chat.id, text=outgoing_msg)
 
+@csrf_exempt
 def vol1mth(update, context):
     incoming_msg = update.message.text
     resp = handle_incoming_msg(incoming_msg)
@@ -211,6 +181,7 @@ def vol1mth(update, context):
         outgoing_msg = resp["msg"]
     context.bot.send_message(chat_id=update.effective_chat.id, text=outgoing_msg)
 
+@csrf_exempt
 def funfact(update, context):
     incoming_msg = update.message.text
     resp = handle_incoming_msg(incoming_msg)
