@@ -1,7 +1,8 @@
 import json
 import os
-import requests
+import time
 import locale
+import requests
 
 from dotenv import load_dotenv
 from django.http import HttpResponse
@@ -13,8 +14,6 @@ import telegram
 from twilio.twiml.messaging_response import MessagingResponse
 
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-
-
 load_dotenv()
 
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
@@ -55,6 +54,39 @@ def whatsapp_bot(request):
 
 
 
+# # Get API key from environment variables
+# TELEGRAMBOT_API_KEY = os.environ.get('TELEGRAMBOT_API_KEY')
+
+# # Create bot and dispatcher instances
+# bot = Bot(token=TELEGRAMBOT_API_KEY)
+# dispatcher = Dispatcher(bot, None, use_context=True)
+
+# # Define handler functions
+# @csrf_exempt
+# def start(update, context):
+#     print(update.message.text)
+#     context.bot.send_message(chat_id=update.effective_chat.id, text="Hey boss! Ask me anything about crypto.")
+
+# @csrf_exempt
+# def echo(update, context):
+#     context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
+
+# # Add handlers to dispatcher
+# dispatcher.add_handler(MessageHandler(Filters.command, start))
+# dispatcher.add_handler(MessageHandler(Filters.text, echo))
+
+# # Define webhook view function
+# @csrf_exempt
+# def telegram_webhook(request):
+#     if request.method == 'POST':
+#         data = json.loads(request.body.decode('utf-8'))
+#         update = Update.de_json(data, bot)
+#         dispatcher.process_update(update)
+#     return HttpResponse('okay')
+
+# # Set webhook
+# bot.setWebhook(url='https://tobianointing.pythonanywhere.com/telegram_webhook/')
+
 # Get API key from environment variables
 TELEGRAMBOT_API_KEY = os.environ.get('TELEGRAMBOT_API_KEY')
 
@@ -63,9 +95,6 @@ bot = Bot(token=TELEGRAMBOT_API_KEY)
 dispatcher = Dispatcher(bot, None, use_context=True)
 
 # Define handler functions
-@csrf_exempt
-def start(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id, text="Hey boss! Ask me anything about crypto.")
 
 HELP_TEXT = """
 Hello, I can help you on ingo about cryptos.
@@ -79,7 +108,7 @@ rate/usd of the crypto e.g /price BTC
 
 /vol1mth [symbol] - cypto volume in the last 1 month
 
-/funfact [symbol] - gives a random fun fact about symbol
+/funfact [name] - gives a random fun fact about symbol. e.g /funfact bitcoin
 
 /assets - to see list of available assets. You can get the symbols here
 
@@ -125,15 +154,16 @@ def get_rate(resp):
 
 def handle_incoming_msg(incoming_msg):
     incoming_msg_list = incoming_msg.split(" ")
-    output = ""
     if len(incoming_msg_list) == 2:
         symbol = incoming_msg_list[1]
-        output = symbol.upper()
-    else:
-        output = "Please enter the right command. Type `/help` for help."
-    
-    return output
+        return {"status": True, "msg": symbol}
+    return {"status": False, "msg": "Please enter the right command. Type `/help` for help."}
 
+    return "Please enter the right command. Type `/help` for help."
+
+@csrf_exempt
+def start(update, context):
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Hey boss! Ask me anything about crypto.")
 
 @csrf_exempt
 def help(update, context):
@@ -146,44 +176,69 @@ def assests(update, context):
 @csrf_exempt
 def price(update, context):
     incoming_msg = update.message.text
-    symbol = handle_incoming_msg(incoming_msg)
-    endpoint = f"exchangerate/{symbol}/USD"
-    outgoing_msg = api_apdater(endpoint, get_rate)
+    resp = handle_incoming_msg(incoming_msg)
+    outgoing_msg = ""
+    if resp["status"]:
+        symbol = resp["msg"]
+        endpoint = f"exchangerate/{symbol}/USD"
+        outgoing_msg = api_apdater(endpoint, get_rate)
+    else:
+        outgoing_msg = resp["msg"]
+
     context.bot.send_message(chat_id=update.effective_chat.id, text=outgoing_msg)
 
 def vol24h(update, context):
     incoming_msg = update.message.text
-    symbol = handle_incoming_msg(incoming_msg)
-    endpoint = f"assets/{symbol}"
-    outgoing_msg = api_apdater(endpoint, get_rate, vol_type="volume_1day_usd")
+    resp = handle_incoming_msg(incoming_msg)
+    outgoing_msg = ""
+    if resp["status"]:
+        symbol = resp["msg"]
+        endpoint = f"assets/{symbol}"
+        outgoing_msg = api_apdater(endpoint, get_vol, vol_type="volume_1day_usd")
+    else:
+        outgoing_msg = resp["msg"]
     context.bot.send_message(chat_id=update.effective_chat.id, text=outgoing_msg)
 
 def vol1mth(update, context):
     incoming_msg = update.message.text
-    symbol = handle_incoming_msg(incoming_msg)
-    endpoint = f"assets/{symbol}"
-    outgoing_msg = api_apdater(endpoint, get_rate, vol_type="volume_1mth_usd")
+    resp = handle_incoming_msg(incoming_msg)
+    outgoing_msg = ""
+    if resp["status"]:
+        symbol = resp["msg"]
+        endpoint = f"assets/{symbol}"
+        outgoing_msg = api_apdater(endpoint, get_vol, vol_type="volume_1mth_usd")
+    else:
+        outgoing_msg = resp["msg"]
     context.bot.send_message(chat_id=update.effective_chat.id, text=outgoing_msg)
 
 def funfact(update, context):
     incoming_msg = update.message.text
-    symbol = handle_incoming_msg(incoming_msg)
-    prompt = f"give one fun fact about {symbol} cryptocurrency"
-    response = openai.Completion.create(model="text-curie-001", prompt=prompt, temperature=0.5, max_tokens=30)
-    outgoing_msg = response["choices"][0]["text"].strip()
+    resp = handle_incoming_msg(incoming_msg)
+    outgoing_msg = ""
+    if resp["status"]:
+        symbol = resp["msg"]
+        symbol = handle_incoming_msg(incoming_msg)
+        prompt = f"give one fun fact about {symbol} cryptocurrency"
+        response = openai.Completion.create(model="text-curie-001", prompt=prompt, temperature=0.5, max_tokens=30)
+        outgoing_msg = response["choices"][0]["text"].strip()
+    else:
+        outgoing_msg = resp["msg"]
+
     context.bot.send_message(chat_id=update.effective_chat.id, text=outgoing_msg)
+
 
 @csrf_exempt
 def echo(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="I don't get this 😐. Type `/help` for help")
 
 # Add handlers to dispatcher
-dispatcher.add_handler(MessageHandler(Filters.command, start))
-dispatcher.add_handler(MessageHandler(Filters.command, help))
-dispatcher.add_handler(MessageHandler(Filters.command, price))
-dispatcher.add_handler(MessageHandler(Filters.command, vol24h))
-dispatcher.add_handler(MessageHandler(Filters.command, vol1mth))
-dispatcher.add_handler(MessageHandler(Filters.command, funfact))
+dispatcher.add_handler(CommandHandler("start", start))
+dispatcher.add_handler(CommandHandler("funfact", funfact))
+dispatcher.add_handler(CommandHandler("vol24h", vol24h))
+dispatcher.add_handler(CommandHandler("vol1mth", vol1mth))
+dispatcher.add_handler(CommandHandler("assets", assests))
+dispatcher.add_handler(CommandHandler("help", help))
+dispatcher.add_handler(CommandHandler("price", price))
 dispatcher.add_handler(MessageHandler(Filters.text, echo))
 
 # Define webhook view function
