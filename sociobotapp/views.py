@@ -43,7 +43,7 @@ def whatsapp_bot(request):
         elif "crypto" in incoming_msg:
             try:
                 response = openai.Completion.create(model="text-curie-001", prompt=incoming_msg, temperature=0, max_tokens=30)
-                msg_to_send = response["choices"][0]["text"]
+                msg_to_send = response["choices"][0]["text"].strip()
             except:
                 msg_to_send = "Boss no vex we no fit handle your request right now"
         else:
@@ -66,16 +66,124 @@ dispatcher = Dispatcher(bot, None, use_context=True)
 @csrf_exempt
 def start(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Hey boss! Ask me anything about crypto.")
+
+HELP_TEXT = """
+Hello, I can help you on ingo about cryptos.
+
+Here are so me of the commands to get apt answers:
+
+/price [symbol] - this is to get you the current
+rate/usd of the crypto e.g /price BTC
+
+/vol24h [symbol] - cypto volume in the last 24 hours
+
+/vol1mth [symbol] - cypto volume in the last 1 month
+
+/funfact [symbol] - gives a random fun fact about symbol
+
+/assets - to see list of available assets. You can get the symbols here
+
+/help - display this help message
+"""
+
+ASSESTS = """
+Bitcoin (BTC)
+Ethereum (ETH)
+Cardano (ADA)
+Polygon (MATIC)
+Dogecoin (DOGE)
+Solana (SOL)
+Binance Coin (BNB)
+"""
+
+COINAPI_API_KEY = os.environ.get('COINAPI_API_KEY')
+
+
+def api_apdater(endpoint, callback, **kwargs):
+    BASE_URL = "https://rest.coinapi.io/v1"
+    url = f'{BASE_URL}/{endpoint}/'
+    headers = {'X-CoinAPI-Key' : COINAPI_API_KEY}
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        if kwargs:
+            return callback(response.json(), kwargs["vol_type"])
+        return callback(response.json())
+    return "Sorry, we are unable to process your request right now try again later."
+
+def get_vol(resp, vol_type):
+    return format_rate(resp[0][vol_type])
+
+def format_rate(price):
+    formatted_price = locale.currency(price, grouping=True)
+    return formatted_price
+
+def get_rate(resp):
+    price = resp["rate"]
+    price = format_rate(price)
+    return price
+
+
+def handle_incoming_msg(incoming_msg):
+    incoming_msg_list = incoming_msg.split(" ")
+    output = ""
+    if len(incoming_msg_list) == 2:
+        symbol = incoming_msg_list[1]
+        output = symbol.upper()
+    else:
+        output = "Please enter the right command. Type `/help` for help."
     
-def start(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id, text="Hey boss! Ask me anything about crypto.")
+    return output
+
+
+@csrf_exempt
+def help(update, context):
+    context.bot.send_message(chat_id=update.effective_chat.id, text=HELP_TEXT)
+
+@csrf_exempt
+def assests(update, context):
+    context.bot.send_message(chat_id=update.effective_chat.id, text=ASSESTS)
+
+@csrf_exempt
+def price(update, context):
+    incoming_msg = update.message.text
+    symbol = handle_incoming_msg(incoming_msg)
+    endpoint = f"exchangerate/{symbol}/USD"
+    outgoing_msg = api_apdater(endpoint, get_rate)
+    context.bot.send_message(chat_id=update.effective_chat.id, text=outgoing_msg)
+
+def vol24h(update, context):
+    incoming_msg = update.message.text
+    symbol = handle_incoming_msg(incoming_msg)
+    endpoint = f"assets/{symbol}"
+    outgoing_msg = api_apdater(endpoint, get_rate, vol_type="volume_1day_usd")
+    context.bot.send_message(chat_id=update.effective_chat.id, text=outgoing_msg)
+
+def vol1mth(update, context):
+    incoming_msg = update.message.text
+    symbol = handle_incoming_msg(incoming_msg)
+    endpoint = f"assets/{symbol}"
+    outgoing_msg = api_apdater(endpoint, get_rate, vol_type="volume_1mth_usd")
+    context.bot.send_message(chat_id=update.effective_chat.id, text=outgoing_msg)
+
+def funfact(update, context):
+    incoming_msg = update.message.text
+    symbol = handle_incoming_msg(incoming_msg)
+    prompt = f"give one fun fact about {symbol} cryptocurrency"
+    response = openai.Completion.create(model="text-curie-001", prompt=prompt, temperature=0.5, max_tokens=30)
+    outgoing_msg = response["choices"][0]["text"].strip()
+    context.bot.send_message(chat_id=update.effective_chat.id, text=outgoing_msg)
 
 @csrf_exempt
 def echo(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
+    context.bot.send_message(chat_id=update.effective_chat.id, text="I don't get this 😐. Type `/help` for help")
 
 # Add handlers to dispatcher
 dispatcher.add_handler(MessageHandler(Filters.command, start))
+dispatcher.add_handler(MessageHandler(Filters.command, help))
+dispatcher.add_handler(MessageHandler(Filters.command, price))
+dispatcher.add_handler(MessageHandler(Filters.command, vol24h))
+dispatcher.add_handler(MessageHandler(Filters.command, vol1mth))
+dispatcher.add_handler(MessageHandler(Filters.command, funfact))
 dispatcher.add_handler(MessageHandler(Filters.text, echo))
 
 # Define webhook view function
@@ -91,19 +199,4 @@ def telegram_webhook(request):
 bot.setWebhook(url='https://tobianointing.pythonanywhere.com/telegram_webhook/')
 
 
-COINAPI_API_KEY = os.environ.get('COINAPI_API_KEY')
 
-def format_rate(price):
-    formatted_price = locale.currency(price, grouping=True)
-    return formatted_price
-
-def get_rate(coin):
-    url = f'https://rest.coinapi.io/v1/exchangerate/{coin.upper()}/USD'
-    headers = {'X-CoinAPI-Key' : COINAPI_API_KEY}
-    response = requests.get(url, headers=headers)
-    response = response.json()
-    price = response["rate"]
-    price = format_rate(price)
-    print(price)
-
-get_rate("eth")
