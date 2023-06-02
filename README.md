@@ -46,4 +46,4 @@ This project is licensed under the MIT License. See the LICENSE file for more in
 
 ## Acknowledgments
 
-This project was a mini task assigned to me by my boss, Michael, to test my skills on a larger project in the same field. It was made possible thanks to the services provided by OpenAI, Telegram, CoinAPI, and Twilio.
+This project was a mini task. It was made possible thanks to the free services provided by OpenAI, Telegram, CoinAPI, and Twilio.
